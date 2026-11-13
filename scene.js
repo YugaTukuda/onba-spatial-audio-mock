@@ -1,3 +1,4 @@
+import { DEFAULT_ROOM, normalizeRoom } from './room-acoustics.js';
 export const COLORS = ['#eab179', '#9babe8', '#d5a4d5', '#8ed0b7', '#e0cc7c', '#83bdd5'];
 export const CLIPS = {
   'beetle-01': { label: 'コガネムシ · 00:00–00:30', url: './audio/koganemushi-01-000-030.wav', fileName: 'コガネムシ_00m00s–00m30s.wav' },
@@ -19,7 +20,7 @@ export function makeSource(index, x = 5, z = 5) {
 }
 export function initialScene() {
   return { version: 1, listener: { x: 5, z: 6, height: 1.6, yaw: 0, pitch: 0 },
-    master: 65, reverb: 20, sources: [makeSource(0, 2.5, 2.5), makeSource(1, 7.5, 3.5), makeSource(2, 3.5, 7.5)] };
+    master: 65, reverb: 20, room: { ...DEFAULT_ROOM }, sources: [makeSource(0, 2.5, 2.5), makeSource(1, 7.5, 3.5), makeSource(2, 3.5, 7.5)] };
 }
 function number(value, min, max, name) {
   if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max) throw new Error(`${name}が正しくありません`);
@@ -40,7 +41,12 @@ export function validateScene(input) {
       kind: s.kind, fileName: s.audio ? String(s.fileName || '読み込んだ音声').slice(0, 180) : null,
       audio: s.audio || null };
   });
-  return { version: 1, listener, master: number(input.master, 0, 100, '出力音量'), reverb: number(input.reverb, 0, 100, '残響'), sources };
+  const room = normalizeRoom(input.room);
+  const highest = Math.max(listener.height,...sources.map(source=>source.height));
+  // Older scenes had no ceiling. Preserve their source positions when loading.
+  if (!input.room && highest > room.height) { room.height = highest + .2; room.preset = 'custom'; }
+  if (highest > room.height) throw new Error('音源または耳の高さが天井を超えています');
+  return { version: 1, listener, master: number(input.master, 0, 100, '出力音量'), reverb: number(input.reverb, 0, 100, '残響'), room, sources };
 }
 export function toBase64(buffer) {
   const bytes = new Uint8Array(buffer);

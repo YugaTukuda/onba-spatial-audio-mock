@@ -1,0 +1,34 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>ONBA room audio verification</title><style>body{background:#152015;color:#d5eaca;font:15px system-ui;max-width:850px;margin:40px auto;padding:20px}button{padding:12px 20px}pre{white-space:pre-wrap;line-height:1.8}</style><h1>Room audio verification</h1><p>Real Web Audio graph, silent output, no camera.</p><button id="run">Run verification</button><pre id="result">Ready</pre><script type="module">
+import {AudioEngine} from '../audio-engine.js';
+import {initialScene} from '../scene.js';
+import {roomMetrics,DEFAULT_ROOM} from '../room-acoustics.js';
+const result=document.querySelector('#result');const log=s=>result.textContent+='\n'+s;
+const assert=(condition,message)=>{if(!condition)throw Error(message);log('PASS: '+message);};
+const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+document.querySelector('#run').onclick=async()=>{
+ document.querySelector('#run').disabled=true;result.textContent='Running';const engine=new AudioEngine();
+ try{
+  await engine.init();const silent=engine.ctx.createGain();silent.gain.value=0;engine.limiter.disconnect(engine.ctx.destination);engine.limiter.connect(silent).connect(engine.ctx.destination);
+  const scene=initialScene();scene.sources=scene.sources.slice(0,1);scene.sources[0].kind='wind';scene.reverb=70;scene.master=100;
+  await engine.play(scene);await wait(350);const voice=engine.voices.get(scene.sources[0].id);
+  assert(voice.reflections.length===6,'six image-source reflection paths');
+  assert(Math.abs(engine.convolver.buffer.duration-roomMetrics(scene.room).rt60*1.15)<.001,'white-cube impulse duration follows the calculated RT60');
+  assert(Math.abs(engine.predelay.delayTime.value-.018)<.001,'18ms predelay reaches the audio graph');
+  scene.room={...DEFAULT_ROOM,preset:'custom',height:4.5,autoRt60:false,rt60:.6,predelay:50};engine.update(scene);await wait(450);
+  assert(Math.abs(voice.reflections[5].panner.positionY.value-(9-scene.sources[0].height))<.002,'ceiling height changes the reflected source');
+  assert(Math.abs(voice.reflections[4].panner.positionY.value+scene.sources[0].height)<.002,'floor reflection is below the floor');
+  assert(Math.abs(engine.convolver.buffer.duration-.69)<.001,'manual 0.6s RT60 rebuilds the tail during playback');
+  assert(Math.abs(engine.predelay.delayTime.value-.05)<.001,'predelay changes during playback');
+  const previous=voice.reflections[0].gain.gain.value;
+  scene.room={...scene.room,wallAbsorption:.85,rt60:3};engine.update(scene);await wait(450);
+  assert(voice.reflections[0].gain.gain.value<previous*.5,'higher wall absorption reduces the reflected signal');
+  assert(Math.abs(engine.convolver.buffer.duration-3.45)<.001,'3s RT60 produces a longer tail');
+  assert(engine.playing&&engine.voices.size===1,'changing rooms keeps the source playing');
+  assert(engine.meters.every(({analyser,data})=>{analyser.getFloatTimeDomainData(data);return data.every(Number.isFinite);}), 'crossfading produces finite stereo output');
+  scene.reverb=0;engine.update(scene);await wait(400);
+  assert(engine.wet.gain.value<1e-5&&voice.reflections.every(r=>r.gain.gain.value<1e-5),'zero room mix removes both the early and late reflections');
+  await engine.stop();assert(engine.voices.size===0&&engine.elapsed()===0,'stop safely flushes both convolver banks');
+  log('ALL CHECKS PASSED');
+ }catch(error){log('FAIL: '+error.stack);}finally{await engine.ctx?.close();}
+};
+</script></html>

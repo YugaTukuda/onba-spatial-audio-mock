@@ -1,5 +1,6 @@
 import { AudioEngine } from './audio-engine.js';
 import { HeadTracker } from './tracking.js';
+import { ROOM_PRESETS, DEFAULT_ROOM, normalizeRoom, roomMetrics } from './room-acoustics.js';
 import { initialScene, makeSource, validateScene, MAX_SOURCES, MAX_FILE_BYTES, DEMOS, CLIPS, clamp, wrapAngle, distance, toBase64 } from './scene.js';
 
 const $ = id => document.getElementById(id);
@@ -34,6 +35,65 @@ function orientation() { return { yaw: wrapAngle(scene.listener.yaw + tracker.of
 function paintRange(input) { input.style.setProperty('--value', `${(input.value - input.min) / (input.max - input.min) * 100}%`); }
 function setField(id, value) { const element = $(id); if (document.activeElement !== element) element.value = value; }
 function changed() { dirty = true; }
+
+function renderRoom() {
+  const room = scene.room;
+  const metrics = roomMetrics(room);
+  $('room-preset').value = $('room-preset-detail').value = room.preset;
+  $('room-rt60-summary').textContent = metrics.rt60.toFixed(2);
+  $('room-height-summary').textContent = room.height.toFixed(1);
+  $('rt60-mode-label').textContent = room.autoRt60 ? '推定 RT60' : '指定 RT60';
+  $('room-rt60-readout').textContent = metrics.rt60.toFixed(2);
+  $('room-rt60-status').textContent = room.autoRt60 ? metrics.estimatedRt60>6 ? '自動 / 上限6秒' : '自動' : '手動';
+  $('room-volume').textContent = `${Math.round(metrics.volume)} m³`;
+  setField('room-mix',scene.reverb);
+  $('room-mix-value').textContent = `${scene.reverb}%`;
+  paintRange($('room-mix'));
+  setField('room-height',room.height.toFixed(1));
+  $('room-auto-rt60').checked = room.autoRt60;
+  $('room-rt60').disabled = room.autoRt60;
+  setField('room-rt60',Math.round(metrics.rt60*20)/20);
+  setField('room-predelay',room.predelay);
+  $('room-predelay-value').textContent = `${room.predelay} ms`;
+  for (const [id,key] of [['wall-absorption','wallAbsorption'],['floor-absorption','floorAbsorption'],['ceiling-absorption','ceilingAbsorption']]) {
+    setField(id,Math.round(room[key]*100));
+    $(`${id}-value`).textContent = `${Math.round(room[key]*100)}%`;
+    paintRange($(id));
+  }
+  ['room-rt60','room-predelay'].forEach(id=>paintRange($(id)));
+  ['listener-height','source-height'].forEach(id=>$(id).max=String(Math.min(5,room.height)));
+}
+
+function updateRoom(next) {
+  scene.room = normalizeRoom(next);
+  let adjusted = false;
+  for (const point of [scene.listener,...scene.sources]) {
+    if (point.height>scene.room.height) { point.height=scene.room.height; adjusted=true; }
+  }
+  renderRoom(); renderListener(); renderDetail(); changed();
+  if (adjusted) toast('天井高に合わせて、音源・耳の高さを調整しました');
+}
+
+function chooseRoomPreset(preset) {
+  if (preset==='custom') return updateRoom({...scene.room,preset});
+  const {label,...parameters}=ROOM_PRESETS[preset];
+  updateRoom({...parameters,preset});
+}
+for (const id of ['room-preset','room-preset-detail']) $(id).addEventListener('change',event=>chooseRoomPreset(event.target.value));
+$('room-height').addEventListener('input',event=>{
+  const value=event.target.valueAsNumber;
+  if (Number.isFinite(value)) updateRoom({...scene.room,preset:'custom',height:clamp(value,2,8)});
+});
+$('room-height').addEventListener('change',()=>{ $('room-height').value=scene.room.height.toFixed(1); });
+for (const [id,key] of [['wall-absorption','wallAbsorption'],['floor-absorption','floorAbsorption'],['ceiling-absorption','ceilingAbsorption']]) {
+  $(id).addEventListener('input',event=>updateRoom({...scene.room,preset:'custom',[key]:Number(event.target.value)/100}));
+}
+$('room-auto-rt60').addEventListener('change',event=>{
+  const rt60=clamp(Math.round(roomMetrics(scene.room).rt60*20)/20,.15,6);
+  updateRoom({...scene.room,preset:'custom',autoRt60:event.target.checked,rt60});
+});
+$('room-rt60').addEventListener('input',event=>updateRoom({...scene.room,preset:'custom',autoRt60:false,rt60:Number(event.target.value)}));
+$('room-predelay').addEventListener('input',event=>updateRoom({...scene.room,preset:'custom',predelay:Number(event.target.value)}));
 
 function renderSources() {
   $('source-count').textContent = String(scene.sources.length).padStart(2, '0');
@@ -160,7 +220,7 @@ function bindNumber(id, getObject, property, min, max, onChange) {
     const object = getObject();
     const number = event.target.valueAsNumber;
     if (!object || !Number.isFinite(number)) return;
-    object[property] = clamp(number, min, max);
+    object[property] = clamp(number, min, typeof max==='function'?max():max);
     onChange?.(); changed();
   });
   $(id).addEventListener('change', event => {
@@ -168,7 +228,7 @@ function bindNumber(id, getObject, property, min, max, onChange) {
     if (!object) return;
     const number = event.target.valueAsNumber;
     if (!Number.isFinite(number)) { event.target.value = object[property]; return; }
-    object[property] = clamp(number, min, max);
+    object[property] = clamp(number, min, typeof max==='function'?max():max);
     event.target.value = object[property];
     onChange?.();
     changed();
@@ -178,8 +238,8 @@ function bindNumber(id, getObject, property, min, max, onChange) {
   bindNumber(`listener-${axis}`, () => scene.listener, axis, 0, 10, renderListener);
   bindNumber(`source-${axis}`, currentSource, axis, 0, 10, renderDetail);
 });
-bindNumber('listener-height', () => scene.listener, 'height', 0, 5, renderListener);
-bindNumber('source-height', currentSource, 'height', 0, 5, renderDetail);
+bindNumber('listener-height', () => scene.listener, 'height', 0, () => Math.min(5,scene.room.height), renderListener);
+bindNumber('source-height', currentSource, 'height', 0, () => Math.min(5,scene.room.height), renderDetail);
 function setHeading(value) { scene.listener.yaw = wrapAngle(value - tracker.offset.yaw); renderListener(); changed(); }
 $('listener-yaw').addEventListener('input', event => { if (Number.isFinite(event.target.valueAsNumber)) setHeading(event.target.valueAsNumber); });
 $('listener-yaw').addEventListener('change', event => { if (Number.isFinite(event.target.valueAsNumber)) setHeading(event.target.valueAsNumber); else renderListener(); });
@@ -265,7 +325,15 @@ for (const zone of [$('upload-zone'), $('stage-wrap')]) {
 for (const id of ['master', 'reverb']) $(id).addEventListener('input', event => {
   scene[id] = Number(event.target.value);
   $(`${id}-value`).textContent = `${scene[id]}%`;
-  paintRange(event.target); changed();
+  paintRange(event.target);
+  if(id==='reverb') { setField('room-mix',scene.reverb); $('room-mix-value').textContent=`${scene.reverb}%`; paintRange($('room-mix')); }
+  changed();
+});
+$('room-mix').addEventListener('input',event=>{
+  scene.reverb=Number(event.target.value);
+  $('reverb').value=scene.reverb;
+  $('reverb-value').textContent=$('room-mix-value').textContent=`${scene.reverb}%`;
+  paintRange($('reverb'));paintRange(event.target);changed();
 });
 
 let transportBusy = false;
@@ -273,21 +341,23 @@ async function togglePlay() {
   if (transportBusy) return;
   if (fileBusy) return toast('ファイルの読み込みが完了するまでお待ちください');
   transportBusy = true;
-  $('play').disabled = true;
+  $('play').disabled = $('room-audition').disabled = true;
   try {
     if (engine.playing) await engine.pause();
     else if (!scene.sources.length) toast('音源を追加してから再生してください');
     else await engine.play(scene, orientation());
     renderTransport();
   } catch (error) { toast(`再生できませんでした: ${error.message}`, true); }
-  finally { transportBusy = false; $('play').disabled = false; }
+  finally { transportBusy = false; $('play').disabled = $('room-audition').disabled = false; }
 }
 function renderTransport() {
   document.body.classList.toggle('playing', engine.playing);
   $('play').innerHTML = `${icon(engine.playing ? 'pause' : 'play')}<span>${engine.playing ? '一時停止' : engine.startedAt !== null ? '再開する' : '試聴する'}</span>`;
   $('stage-status').textContent = engine.playing ? '音場を再生中' : '音場プレビュー';
+  $('room-audition').innerHTML = `${icon(engine.playing?'pause':'play')}${engine.playing?'一時停止':'試聴する'}`;
 }
 $('play').addEventListener('click', togglePlay);
+$('room-audition').addEventListener('click',togglePlay);
 $('stop').addEventListener('click', async () => {
   if (transportBusy) return;
   transportBusy = true;
@@ -384,7 +454,7 @@ $('scene-file').addEventListener('change', async event => {
     scene = loaded;
     selected = scene.sources[0]?.id;
     tracker.calibrate();
-    renderSources(); renderListener(); renderTransport();
+    renderSources(); renderRoom(); renderListener(); renderTransport();
     ['master', 'reverb'].forEach(id => { $(id).value = scene[id]; paintRange($(id)); $(`${id}-value`).textContent = `${scene[id]}%`; });
     setTool('move'); changed();
     toast('シーンを読み込みました');
@@ -393,6 +463,16 @@ $('scene-file').addEventListener('change', async event => {
 });
 
 const helpDialog = $('help-dialog');
+const roomDialog = $('room-dialog');
+$('open-room-settings').addEventListener('click',()=>{ pressed.clear(); renderRoom(); roomDialog.showModal(); });
+$('close-room-settings').addEventListener('click',()=>roomDialog.close());
+$('done-room-settings').addEventListener('click',()=>roomDialog.close());
+$('reset-room-settings').addEventListener('click',()=>updateRoom({...DEFAULT_ROOM}));
+roomDialog.addEventListener('click',event=>{
+  if(event.target!==roomDialog)return;
+  const rect=roomDialog.getBoundingClientRect();
+  if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)roomDialog.close();
+});
 $('help').addEventListener('click', () => { pressed.clear(); helpDialog.showModal(); });
 $('close-help').addEventListener('click', () => helpDialog.close());
 $('start-exploring').addEventListener('click', () => helpDialog.close());
@@ -441,7 +521,7 @@ for (const event of ['pointerup', 'pointercancel', 'lostpointercapture']) canvas
 
 const interactiveField = target => target instanceof HTMLElement && (target.matches('input, select, textarea, button, a') || target.isContentEditable);
 window.addEventListener('keydown', event => {
-  if (interactiveField(event.target) || helpDialog.open || event.metaKey || event.ctrlKey || event.altKey) return;
+  if (interactiveField(event.target) || helpDialog.open || roomDialog.open || event.metaKey || event.ctrlKey || event.altKey) return;
   const key = event.key.toLowerCase();
   if (key === 'escape') { setTool('move'); return; }
   if (key === ' ') { event.preventDefault(); if (!event.repeat) togglePlay(); return; }
@@ -454,7 +534,7 @@ window.addEventListener('pagehide', () => { tracker.dispose(); engine.ctx?.close
 window.addEventListener('beforeunload', event => { if (scene.sources.some(s => s.audio)) { event.preventDefault(); event.returnValue = ''; } });
 
 function keyboardMove(dt) {
-  if (!pressed.size || helpDialog.open || interactiveField(document.activeElement)) return;
+  if (!pressed.size || helpDialog.open || roomDialog.open || interactiveField(document.activeElement)) return;
   let forward = Number(pressed.has('w') || pressed.has('arrowup')) - Number(pressed.has('s') || pressed.has('arrowdown'));
   let sideways = Number(pressed.has('d')) - Number(pressed.has('a'));
   const rotation = Number(pressed.has('e') || pressed.has('arrowright')) - Number(pressed.has('q') || pressed.has('arrowleft'));
@@ -570,6 +650,6 @@ function frame(time) {
   }
   requestAnimationFrame(frame);
 }
-renderSources(); renderListener();
+renderSources(); renderRoom(); renderListener();
 document.querySelectorAll('input[type=range]').forEach(paintRange);
 requestAnimationFrame(frame);

@@ -1,0 +1,39 @@
+.acoustic-panel .panel-heading{margin-bottom:12px}
+.room-preset{width:100%;margin-bottom:15px;min-height:31px;font-size:10px}
+.room-summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin:16px 0 12px;padding:12px 0;border-top:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft)}
+.room-summary>div{display:flex;flex-direction:column;gap:7px}
+.room-summary>div+div{border-left:1px solid var(--line-soft);padding-left:10px}
+.room-summary span{color:#839779;font-size:8px;white-space:nowrap}
+.room-summary strong{font:17px var(--mono);color:#c5ddbb;white-space:nowrap}
+.room-summary b{font-weight:400}
+.room-summary small{font-size:8px;color:#899d7f;margin-left:4px}
+.room-settings-button{font-size:10px;min-height:31px;padding:7px}
+.acoustic-panel .acoustic-note{margin-top:10px;padding-top:0;line-height:1.7}
+#room-dialog{width:min(720px,calc(100vw - 28px))}
+#room-dialog .dialog-heading{margin-bottom:12px}
+.room-intro{font-size:11px;line-height:1.8;color:#a5b99a;margin-bottom:22px}
+.room-settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.room-group{background:#172015;border:1px solid #35492d;border-radius:9px;padding:18px;min-width:0}
+.room-group h3{font-size:12px;font-weight:500;color:#d1e2c6;margin:0 0 18px}
+.room-field{display:flex;flex-direction:column;gap:9px;color:#93a786;font-size:10px}
+.room-field select{width:100%;font-size:11px}
+.room-dimensions{display:flex;justify-content:space-between;font:10px var(--mono);margin-top:15px;color:#c0d5b3}
+.room-group .inline-field{font-size:11px}
+.room-group .inline-field input{width:51px}
+.room-group .checkbox-field{font-size:10px;gap:7px;margin:0}
+.room-group output{font:10px var(--mono);color:#bdd5af}
+.room-group .control-label{font-size:10px}
+.room-group input[type=range]{margin:15px 0 20px}
+.room-group input:disabled{opacity:.4;cursor:not-allowed}
+.room-group .range-labels{margin-top:-9px}
+.room-hint{font-size:9px;color:#819975;line-height:1.9;margin-top:16px}
+.room-time{display:flex;align-items:baseline;gap:8px;margin:21px 0 17px}
+.room-time strong{font:34px var(--mono);letter-spacing:-1.6px;color:#d1e9c6}
+.room-time>span{font-size:9px;color:#90a782}
+.room-time small{font-size:8px;color:#b2cd9f;margin-left:auto;padding:4px 7px;border:1px solid #425b36;border-radius:4px;white-space:nowrap}
+.room-model-note{font-size:9px;line-height:1.9;color:#8fa880;padding-top:18px;margin-top:18px;border-top:1px solid #354a2c}
+.room-dialog-actions{display:flex;gap:10px;justify-content:space-between;margin-top:20px;flex-wrap:wrap}
+.room-dialog-actions #reset-room-settings{margin-right:auto}
+@media(max-width:1050px){.acoustic-panel{display:block}.room-summary{margin-top:17px}}
+@media(max-width:700px){.acoustic-panel .panel-heading h2{font-size:12px}.room-summary span{font-size:9px}.room-summary strong{font-size:20px}.room-preset{font-size:11px}.room-settings-button{font-size:11px}.room-summary{margin:16px 0;padding:13px 0}.room-summary>div+div{padding-left:20px}}
+@media(max-width:540px){#room-dialog{padding:23px 17px}.room-settings-grid{grid-template-columns:1fr}.room-group{padding:18px}.room-dialog-actions .button{font-size:10px;padding:9px 10px}.room-dialog-actions #reset-room-settings{width:100%}.room-dialog-actions #room-audition,.room-dialog-actions #done-room-settings{flex:1}.room-intro{font-size:10px}}

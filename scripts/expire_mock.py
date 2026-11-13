@@ -28,7 +28,7 @@ def retire(root, now, apply=False):
                 raise ValueError('Refusing to follow an asset symlink')
             if path.exists():
                 shutil.rmtree(path)
-        for name in ('app.js', 'audio-engine.js', 'tracking.js', 'scene.js', 'styles.css', 'entry.js'):
+        for name in ('app.js', 'audio-engine.js', 'tracking.js', 'scene.js', 'room-acoustics.js', 'room-acoustics.css', 'styles.css', 'entry.js'):
             (root / name).unlink(missing_ok=True)
         (root / 'index.html').write_text(EXPIRED_PAGE)
     return True

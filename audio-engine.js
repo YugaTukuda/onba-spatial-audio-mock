@@ -1,4 +1,5 @@
 import { CLIPS, clamp, distance, fromBase64 } from './scene.js';
+import { DEFAULT_ROOM, roomMetrics, reflectedSources, impulseChannels } from './room-acoustics.js';
 
 const SPEED_OF_SOUND = 343;
 const TAU = Math.PI * 2;
@@ -18,6 +19,10 @@ export class AudioEngine {
     this.playing = false;
     this.startedAt = null;
     this.transportBusy = false;
+    this.reverbKey = null;
+    this.requestedReverbKey = null;
+    this.reverbTimer = null;
+    this.activeReverbBank = 0;
   }
 
   async init() {
@@ -39,22 +44,22 @@ export class AudioEngine {
       this.master.connect(this.limiter);
       this.limiter.connect(ctx.destination);
 
-      // A diffuse late tail complements the four image-source reflections.
-      this.convolver = ctx.createConvolver();
-      const length = Math.floor(ctx.sampleRate * 1.8);
-      const impulse = ctx.createBuffer(2, length, ctx.sampleRate);
-      const rand = seededRandom(99);
-      for (let channel = 0; channel < 2; channel++) {
-        const data = impulse.getChannelData(channel);
-        for (let i = 0; i < length; i++) {
-          const t = i / ctx.sampleRate;
-          data[i] = t < .055 ? 0 : (rand() * 2 - 1) * Math.exp(-t * 4.5);
-        }
-      }
-      this.convolver.buffer = impulse;
+      // Two banks let room changes crossfade without cutting an audible tail.
+      this.reverbInput = ctx.createGain();
+      this.predelay = ctx.createDelay(.15);
+      this.reverbInput.connect(this.predelay);
       this.wet = ctx.createGain();
       this.wet.gain.value = .05;
-      this.convolver.connect(this.wet).connect(this.master);
+      this.wet.connect(this.master);
+      this.reverbBanks = [0,1].map(() => {
+        const convolver = ctx.createConvolver();
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass'; filter.frequency.value = 6500;
+        const gain = ctx.createGain(); gain.gain.value = 0;
+        this.predelay.connect(convolver).connect(filter).connect(gain).connect(this.wet);
+        return { convolver, filter, gain };
+      });
+      this.convolver = this.reverbBanks[0].convolver;
 
       const splitter = ctx.createChannelSplitter(2);
       this.limiter.connect(splitter);
@@ -66,6 +71,39 @@ export class AudioEngine {
       });
     })();
     try { await this.ready; } catch (error) { this.ready = null; throw error; }
+  }
+
+  configureRoom(scene) {
+    const room = scene.room || DEFAULT_ROOM;
+    const rt60 = roomMetrics(room).rt60;
+    gainTarget(this.predelay.delayTime, room.predelay / 1000, this.ctx.currentTime);
+    const key = rt60.toFixed(3);
+    if (key === this.requestedReverbKey) return;
+    this.requestedReverbKey = key;
+    clearTimeout(this.reverbTimer);
+    if (!this.reverbKey || this.ctx.state === 'suspended') this.applyReverb(rt60, key);
+    else this.reverbTimer = setTimeout(() => this.applyReverb(rt60, key), 140);
+  }
+
+  applyReverb(rt60, key) {
+    if (!this.ctx || this.ctx.state === 'closed') return;
+    const channels = impulseChannels(this.ctx.sampleRate, rt60);
+    const impulse = this.ctx.createBuffer(2, channels[0].length, this.ctx.sampleRate);
+    channels.forEach((data, channel) => impulse.copyToChannel(data, channel));
+    const next = 1 - this.activeReverbBank;
+    const bank = this.reverbBanks[next];
+    const t = this.ctx.currentTime;
+    bank.gain.gain.cancelScheduledValues(t);
+    bank.gain.gain.setValueAtTime(0,t);
+    bank.convolver.buffer = impulse;
+    this.reverbBanks.forEach((item,i) => {
+      item.gain.gain.cancelScheduledValues(t);
+      if (this.ctx.state === 'suspended') item.gain.gain.setValueAtTime(i===next?1:0,t);
+      else { item.gain.gain.setValueAtTime(item.gain.gain.value,t); item.gain.gain.linearRampToValueAtTime(i===next?1:0,t+.1); }
+    });
+    this.activeReverbBank = next;
+    this.convolver = bank.convolver;
+    this.reverbKey = key;
   }
 
   async decode(arrayBuffer) {
@@ -180,8 +218,8 @@ export class AudioEngine {
     const delay = ctx.createDelay(.25);
     const panner = this.panner(source);
     gain.connect(delay).connect(panner).connect(this.master);
-    panner.connect(this.convolver);
-    const reflections = [0, 1, 2, 3].map(() => {
+    panner.connect(this.reverbInput);
+    const reflections = Array.from({length:6}, () => {
       const delay = ctx.createDelay(.25);
       const panner = this.panner(source);
       const gain = ctx.createGain();
@@ -207,14 +245,11 @@ export class AudioEngine {
     gainTarget(voice.gain.gain, audible ? source.volume / 100 * .55 : 0, t);
     setPosition(voice.panner, source, t);
     gainTarget(voice.delay.delayTime, distance(source, scene.listener) / SPEED_OF_SOUND, t, .05);
-    const images = [
-      { ...source, x: -source.x }, { ...source, x: 20 - source.x },
-      { ...source, z: -source.z }, { ...source, z: 20 - source.z }
-    ];
+    const images = reflectedSources(source, scene.room || DEFAULT_ROOM);
     voice.reflections.forEach((reflection, i) => {
       setPosition(reflection.panner, images[i], t);
       gainTarget(reflection.delay.delayTime, distance(images[i], scene.listener) / SPEED_OF_SOUND, t, .05);
-      gainTarget(reflection.gain.gain, scene.reverb / 100 * .42, t);
+      gainTarget(reflection.gain.gain, scene.reverb / 100 * .55 * images[i].reflection, t);
     });
   }
 
@@ -232,6 +267,7 @@ export class AudioEngine {
     } else listener.setOrientation(...forward, ...up);
     gainTarget(this.master.gain, scene.master / 100, t);
     gainTarget(this.wet.gain, scene.reverb / 100 * .28, t);
+    this.configureRoom(scene);
     scene.sources.forEach(source => this.updateSource(source, scene));
   }
 
@@ -253,8 +289,10 @@ export class AudioEngine {
   async stop() {
     await this.pause();
     [...this.voices.keys()].forEach(id => this.detach(id));
-    // Flush both delay lines and the late tail on stop by replacing its buffer.
-    if (this.convolver) { const impulse = this.convolver.buffer; this.convolver.buffer = null; this.convolver.buffer = impulse; }
+    clearTimeout(this.reverbTimer);
+    this.requestedReverbKey = this.reverbKey;
+    // Flush both late-tail banks on stop, including an outgoing crossfade.
+    this.reverbBanks?.forEach(({convolver}) => { const impulse=convolver.buffer; convolver.buffer=null; convolver.buffer=impulse; });
     this.startedAt = null;
   }
   detach(id) {
