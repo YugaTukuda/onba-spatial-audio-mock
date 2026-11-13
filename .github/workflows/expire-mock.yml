@@ -1,0 +1,41 @@
+name: Close the shared mock on 2026-12-30 JST
+
+on:
+  schedule:
+    # 00:00 JST on Dec 30, then two retries. No local computer is needed.
+    - cron: '0 15,16,17 29 12 *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+
+concurrency:
+  group: close-shared-mock
+  cancel-in-progress: false
+
+jobs:
+  close:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - name: Check the end of the public period
+        id: expiry
+        run: python3 scripts/expire_mock.py >> "$GITHUB_OUTPUT"
+      - name: Retire the public application and audio assets
+        if: steps.expiry.outputs.due == 'true'
+        run: |
+          python3 scripts/expire_mock.py --apply
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add --all
+          if ! git diff --cached --quiet; then
+            git commit -m 'Close the time-limited ONBA shared mock'
+            git push
+          fi
+      - name: Publish the closed page
+        if: steps.expiry.outputs.due == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api --method POST "repos/$GITHUB_REPOSITORY/pages/builds"
