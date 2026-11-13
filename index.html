@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#131714">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <meta name="referrer" content="no-referrer">
+  <meta name="description" content="10m × 10mの空間で音を配置し、歩きながら聴く。ヘッドホンのための空間音響シミュレーター。">
+  <title>ONBA — 音場をつくる、音の中を歩く。</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='12' fill='%23131714'/%3E%3Ccircle cx='24' cy='24' r='15' fill='none' stroke='%23b9e3bd' stroke-width='2'/%3E%3Ccircle cx='24' cy='24' r='8' fill='none' stroke='%23b9e3bd' stroke-width='2'/%3E%3Ccircle cx='24' cy='24' r='2' fill='%23b9e3bd'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <svg class="icon-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="m8 5 11 7-11 7Z"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1"/></symbol>
+    <symbol id="i-speaker" viewBox="0 0 24 24"><path d="m11 5-6 5H2v4h3l6 5ZM15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V3m-5 5 5-5 5 5M4 15v5h16v-5"/></symbol>
+    <symbol id="i-save" viewBox="0 0 24 24"><path d="M12 3v13m-5-5 5 5 5-5M4 17v4h16v-4"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7V4h7l2 3h9v13H3Z"/></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 4 2c-1 .5-1.5 1-1.5 2M12 16v.2"/></symbol>
+    <symbol id="i-headphones" viewBox="0 0 24 24"><path d="M4 14v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="12" width="4" height="8" rx="2"/><rect x="17" y="12" width="4" height="8" rx="2"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><path d="m8 5 1-2h6l1 2h5v15H3V5Z"/><circle cx="12" cy="12" r="4"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7m4-7v7"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M12 20V4m-6 6 6-6 6 6"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12h16M12 4v16"/></symbol>
+    <symbol id="i-wave" viewBox="0 0 24 24"><path d="M3 10v4m4-7v10m5-14v18m5-14v10m4-7v4"/></symbol>
+  </defs></svg>
+
+  <header class="app-header">
+    <a class="brand" href="./" aria-label="ONBA ホーム"><span class="brand-mark"><i></i><i></i><i></i></span><span>ONBA<span class="brand-jp">音場</span></span></a>
+    <span class="header-description">SPATIAL AUDIO STUDIO · MOCK</span>
+    <div class="header-actions">
+      <span class="local-status"><span class="status-dot"></span>ブラウザ内で処理</span>
+      <button class="button quiet" id="load-scene"><svg><use href="#i-folder"/></svg><span>開く</span></button>
+      <button class="button outline" id="save-scene"><svg><use href="#i-save"/></svg><span>シーンを保存</span></button>
+      <button class="icon-button" id="help" aria-label="使い方"><svg><use href="#i-help"/></svg></button>
+    </div>
+  </header>
+
+  <main>
+    <div class="workspace-heading"><div><span class="eyebrow">YOUR SOUND, IN SPACE</span><h1>音の中を、歩こう。<span>音を置いて、聴こえ方を探る。</span></h1></div><span class="room-badge"><svg><use href="#i-grid"/></svg>ROOM 01 <b>10 × 10 m</b></span></div>
+    <div class="workspace">
+      <aside class="sources-panel panel" aria-label="音源">
+        <div class="panel-heading"><h2>音源 <span class="count" id="source-count">03</span></h2><button class="icon-button small" id="add-source" aria-label="音源を追加"><svg><use href="#i-plus"/></svg></button></div>
+        <div class="source-list" id="source-list"></div>
+        <button class="add-source-button" id="add-source-secondary"><svg><use href="#i-plus"/></svg>音源を追加</button>
+        <button class="upload-zone" id="upload-zone"><svg><use href="#i-upload"/></svg><strong>自分の音を持ち込む</strong><span>音声ファイルを選択 / ドロップ<br>WAV・MP3・M4A など / 20 MBまで</span></button>
+        <div class="sources-footnote"><span class="tiny-dot"></span>すべての音源をループ再生</div>
+      </aside>
+
+      <section class="stage-panel panel" aria-label="音源と鑑賞者を配置する空間">
+        <div class="stage-toolbar"><div class="segmented"><button class="active" id="move-tool" aria-pressed="true"><svg><use href="#i-target"/></svg>鑑賞者を移動</button><button id="place-tool" aria-pressed="false"><svg><use href="#i-plus"/></svg>音源を置く</button></div><button class="icon-button small" id="center-listener" aria-label="鑑賞者を中央に戻す" title="鑑賞者を中央に戻す"><svg><use href="#i-target"/></svg></button></div>
+        <div class="stage-wrap" id="stage-wrap">
+          <canvas id="room" tabindex="0" aria-label="10m四方の音場。クリックで鑑賞者を移動、音源をドラッグで配置。WASDで移動、QとEで回転。"></canvas>
+          <div class="stage-top-label"><span class="live-indicator" id="live-indicator"></span><span id="stage-status">音場プレビュー</span></div>
+          <div class="north-marker">N<svg><use href="#i-arrow"/></svg></div>
+          <div class="map-instruction" id="map-instruction">空いている場所をクリックして、そこで聴く</div>
+        </div>
+        <div class="stage-footer"><div class="legend"><span><i class="listener-dot"></i>鑑賞者</span><span><i class="source-dot"></i>音源</span><span><i class="grid-line"></i>1 m</span></div><span id="cursor-coordinates">X 5.00 / Z 6.00 m</span></div>
+        <div class="keyboard-guide"><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移動</span><span><kbd>Q</kbd><kbd>E</kbd> 向き</span><span><kbd>shift</kbd> 速く</span><span class="keyboard-extra"><kbd>space</kbd> 再生 / 一時停止</span></div>
+      </section>
+
+      <aside class="inspector" aria-label="鑑賞者と音響の設定">
+        <section class="panel listener-panel">
+          <div class="panel-heading"><h2><i class="listener-dot"></i>鑑賞者</h2><span class="small-tag">LISTENER</span></div>
+          <div class="listener-values"><label>X <input id="listener-x" type="number" min="0" max="10" step="0.1" value="5.0" aria-label="鑑賞者のX座標"><span>m</span></label><label>Z <input id="listener-z" type="number" min="0" max="10" step="0.1" value="6.0" aria-label="鑑賞者のZ座標"><span>m</span></label></div>
+          <div class="heading-control"><div class="heading-dial" id="heading-dial"><svg><use href="#i-arrow"/></svg></div><div><span class="field-label">向いている方向</span><div class="angle-value"><input id="listener-yaw" type="number" min="0" max="359" step="1" value="0" aria-label="鑑賞者の向き（度）"><span>°</span><small id="compass-label">北</small></div></div></div>
+          <input id="yaw-slider" type="range" min="0" max="359" step="1" value="0" aria-label="鑑賞者の向きを調整">
+          <div class="range-labels"><span>0°</span><span>180°</span><span>359°</span></div>
+          <label class="inline-field">耳の高さ <span><input id="listener-height" type="number" min="0" max="5" step="0.1" value="1.6" aria-label="鑑賞者の耳の高さ"> m</span></label>
+        </section>
+
+        <section class="panel camera-panel">
+          <div class="panel-heading"><h2>ヘッドトラッキング</h2><span class="small-tag" id="camera-badge">OFF</span></div>
+          <div class="camera-preview" id="camera-preview"><video id="webcam" autoplay muted playsinline></video><canvas id="face-overlay"></canvas><div class="camera-placeholder" id="camera-placeholder"><div class="face-symbol"><span></span><i></i></div><span>顔の向きを、音の向きに。</span></div><div class="camera-live-label" id="camera-live-label">顔を探しています</div></div>
+          <button class="button camera-button" id="camera-toggle"><svg><use href="#i-camera"/></svg>カメラを有効にする</button>
+          <div class="camera-options" id="camera-options" hidden><div class="tracking-readout"><span>YAW <b id="camera-yaw">0°</b></span><span>PITCH <b id="camera-pitch">0°</b></span></div><button class="button outline full" id="calibrate-camera"><svg><use href="#i-target"/></svg>正面を合わせる</button><label class="inline-field">回転の感度 <select id="tracking-sensitivity" aria-label="ヘッドトラッキングの感度"><option value="1">1×</option><option value="2">2×</option><option value="3">3×</option></select></label><label class="checkbox-field"><input id="invert-tracking" type="checkbox">左右を反転</label></div>
+          <p class="privacy-note" id="camera-note">映像は端末内で処理。保存・送信しません。</p>
+        </section>
+
+        <section class="panel acoustic-panel"><div class="panel-heading"><h2>空間の響き</h2><span class="small-tag">ACOUSTICS</span></div><div class="control-label"><label for="reverb">反射・残響</label><span id="reverb-value">20%</span></div><input id="reverb" type="range" min="0" max="100" value="20"><div class="range-labels"><span>ドライ</span><span>響く</span></div><p class="acoustic-note">距離減衰 + HRTF + 簡易室内反射</p></section>
+      </aside>
+    </div>
+
+    <section class="source-detail panel" id="source-detail" aria-label="選択した音源の設定">
+      <div class="detail-title"><span class="detail-source-icon" id="detail-source-icon"><svg><use href="#i-speaker"/></svg></span><div><span class="eyebrow">SELECTED SOURCE</span><input id="source-name" maxlength="60" aria-label="選択した音源の名前"></div></div>
+      <div class="source-position"><span class="field-label">位置</span><label>X <input id="source-x" type="number" min="0" max="10" step="0.1" aria-label="音源のX座標"><span>m</span></label><label>Z <input id="source-z" type="number" min="0" max="10" step="0.1" aria-label="音源のZ座標"><span>m</span></label><label>高さ <input id="source-height" type="number" min="0" max="5" step="0.1" aria-label="音源の高さ"><span>m</span></label></div>
+      <div class="sound-choice"><span class="field-label">再生する音</span><select id="source-kind" aria-label="音源の音声を選択"><optgroup label="コガネムシ.m4a / 各30秒"><option value="beetle-01">コガネムシ · 00:00–00:30</option><option value="beetle-02">コガネムシ · 00:30–01:00</option><option value="beetle-03">コガネムシ · 01:00–01:30</option></optgroup><optgroup label="合成サウンド"><option value="wind">風のテクスチャ</option><option value="water">水のしずく</option><option value="chime">柔らかなチャイム</option></optgroup><option value="file" hidden>読み込んだファイル</option></select></div>
+      <button class="button outline" id="replace-audio"><svg><use href="#i-upload"/></svg>ファイルを変更</button>
+    </section>
+
+    <footer class="transport panel">
+      <div class="transport-main"><button class="play-button" id="play"><svg><use href="#i-play"/></svg><span>試聴する</span></button><button class="icon-button stop-button" id="stop" aria-label="停止して先頭に戻す"><svg><use href="#i-stop"/></svg></button><div class="transport-time"><span id="elapsed">00:00</span><span class="loop-label">LOOP</span></div></div>
+      <div class="output-info"><svg><use href="#i-headphones"/></svg><div><strong>ヘッドホンで聴く</strong><span>バイノーラル / HRTF</span></div></div>
+      <div class="master-control"><svg><use href="#i-speaker"/></svg><label class="sr-only" for="master">マスター音量</label><input type="range" id="master" min="0" max="100" value="65"><span id="master-value">65%</span></div>
+      <div class="meters" aria-label="ステレオ出力レベル"><div><span>L</span><div class="meter-track"><i id="meter-l"></i></div></div><div><span>R</span><div class="meter-track"><i id="meter-r"></i></div></div></div>
+    </footer>
+    <div class="bottom-note"><span>ONBA <i>—</i> A LITTLE SPACE FOR LISTENING.</span><span>音響設計のための試聴モデル · 実測に基づく解析ではありません</span></div>
+  </main>
+
+  <input id="audio-file" type="file" accept="audio/*,.wav,.mp3,.m4a,.ogg,.flac,.aac,.aiff" hidden>
+  <input id="scene-file" type="file" accept=".json,.onba.json,application/json" hidden>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <dialog id="help-dialog"><div class="dialog-heading"><div><span class="eyebrow">WELCOME TO ONBA</span><h2>音場をつくる、3つのステップ。</h2></div><button class="icon-button" id="close-help" aria-label="使い方を閉じる"><svg><use href="#i-close"/></svg></button></div><ol class="help-steps"><li><b>01</b><div><h3>音を配置する</h3><p>音源をドラッグして配置。追加ボタンのあと平面図をクリックすると、新しい音源が置けます。音源ごとに音量・音声ファイル・高さを設定できます。Mはミュート、Sはソロです。</p></div></li><li><b>02</b><div><h3>その場所で聴く</h3><p>ヘッドホンを着けて「試聴する」を押します。平面図の空いた場所をクリックすると鑑賞者が移動します。鑑賞者の向きは緑のハンドルをドラッグ、または右側のスライダーで変更できます。</p><div class="help-keys"><span><kbd>W A S D</kbd> 前後・左右に移動</span><span><kbd>Q E / ← →</kbd> 回転</span><span><kbd>↑ ↓</kbd> 前後に移動</span><span><kbd>shift</kbd> 速く移動</span><span><kbd>space</kbd> 再生 / 一時停止</span></div></div></li><li><b>03</b><div><h3>顔を動かして聴く</h3><p>カメラを有効にし、正面を向いて「正面を合わせる」を押してください。顔の左右・上下の向きを鑑賞者に反映します。鑑賞者の基準方向はキーボードやスライダーで変更できます。</p></div></li></ol><div class="help-notes"><p><strong>音響モデルについて</strong>　標準HRTFによる点音源のバイノーラル再生と、距離の逆数による減衰、4面の壁からの一次反射、合成した残響を使っています。壁の材質・遮蔽物・回折・周波数ごとの吸音は解析しません。部屋の高さは固定せず、天井・床の反射は含みません。</p><p><strong>ファイルと保存</strong>　ステレオ音声はモノラルにまとめて点音源化します。最大16音源、1ファイル20 MBまで、合計100 MBまで。長い音声はメモリを多く使用します。シーン保存には読み込んだ音声も含まれます。再読み込み前に保存してください。</p><p><strong>カメラ</strong>　カメラの許可が必要です。HTTPSまたはlocalhostで動作します。映像は録画せず、端末内のMediaPipeモデルで処理します。顔の向きには推定誤差があります。</p><p class="reference-links">技術資料：<a href="https://developer.mozilla.org/en-US/docs/Web/API/PannerNode" target="_blank" rel="noreferrer">Web Audio / PannerNode ↗</a><a href="https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker" target="_blank" rel="noreferrer">MediaPipe Face Landmarker ↗</a></p></div><button class="button primary full" id="start-exploring">音場を探索する</button></dialog>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

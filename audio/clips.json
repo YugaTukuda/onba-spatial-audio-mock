@@ -1,0 +1,34 @@
+{
+  "source_file": "コガネムシ.m4a",
+  "source_sha256": "9c63af5c7827929cb2c96cdae510636048f5e539d5a15197854ca2a87559ad64",
+  "editing": "30 seconds each; mono channel average, 44.1kHz PCM16, 15ms fades at both loop boundaries; original gain preserved",
+  "clips": [
+    {
+      "file": "koganemushi-01-000-030.wav",
+      "source_start_seconds": 0,
+      "source_end_seconds": 30,
+      "duration_seconds": 30.0,
+      "sample_rate": 44100,
+      "channels": 1,
+      "sha256": "24aab5cc6db0aee8d92a708ca880226f3a1a70dbf2bf7b33d98f0edef4b6f4a7"
+    },
+    {
+      "file": "koganemushi-02-030-060.wav",
+      "source_start_seconds": 30,
+      "source_end_seconds": 60,
+      "duration_seconds": 30.0,
+      "sample_rate": 44100,
+      "channels": 1,
+      "sha256": "a76925acd08c950735a0cb36be458b733efd43b325e6e33a0fb688cc44b1f65a"
+    },
+    {
+      "file": "koganemushi-03-060-090.wav",
+      "source_start_seconds": 60,
+      "source_end_seconds": 90,
+      "duration_seconds": 30.0,
+      "sample_rate": 44100,
+      "channels": 1,
+      "sha256": "a76925acd08c950735a0cb36be458b733efd43b325e6e33a0fb688cc44b1f65a"
+    }
+  ]
+}
